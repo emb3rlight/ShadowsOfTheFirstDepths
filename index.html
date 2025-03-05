@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Shadows of the First Depths</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="mini-map-container">
+            <canvas id="map-canvas" width="300" height="300"></canvas>
+        </div>
+        <div id="stats-container">
+            <div id="party-stats"></div>
+        </div>
+        <div id="dungeon-view-container">
+            <canvas id="dungeon-view" width="1200" height="700"></canvas>
+        </div>
+        <div id="combat-log-container">
+            <div id="combat-log"></div>
+        </div>
+        <div id="equipment-container">
+            <div id="party-equipment"></div>
+        </div>
+        <div id="victory-screen" style="display: none;">
+            <h2>Victory!</h2>
+            <div id="final-stats"></div>
+            <button id="reset-button">Play Again</button>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>

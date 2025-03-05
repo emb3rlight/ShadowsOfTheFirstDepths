@@ -1,0 +1,100 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #000;
+    font-family: Arial, sans-serif;
+}
+
+#game-container {
+    width: 1920px;
+    height: 1080px;
+    position: relative;
+}
+
+#mini-map-container {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 300px;
+    height: 300px;
+    border: 2px solid gray;
+}
+
+#stats-container {
+    position: absolute;
+    top: 340px;
+    left: 20px;
+    width: 300px;
+    height: 400px;
+    border: 2px solid white;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+#party-stats {
+    color: white;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+#dungeon-view-container {
+    position: absolute;
+    top: 20px;
+    left: 340px;
+    width: 900px; /* Reduced to fit equipment frame */
+    height: 700px;
+    border: 2px solid white;
+}
+
+#combat-log-container {
+    position: absolute;
+    bottom: 20px;
+    left: 340px;
+    width: 900px; /* Match dungeon view */
+    height: 300px;
+    border: 2px solid white;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+#combat-log {
+    color: white;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+#equipment-container {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 600px;
+    height: 720px;
+    border: 2px solid white;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+#party-equipment {
+    color: white;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+#victory-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #f0f0f0;
+    padding: 20px;
+    border: 2px solid black;
+    text-align: center;
+    width: 600px;
+}
+
+#reset-button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+}
