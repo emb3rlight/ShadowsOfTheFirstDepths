@@ -41,7 +41,7 @@ body {
     position: absolute;
     top: 20px;
     left: 340px;
-    width: 900px; /* Reduced to fit equipment frame */
+    width: 900px;
     height: 700px;
     border: 2px solid white;
 }
@@ -50,7 +50,7 @@ body {
     position: absolute;
     bottom: 20px;
     left: 340px;
-    width: 900px; /* Match dungeon view */
+    width: 900px;
     height: 300px;
     border: 2px solid white;
     padding: 10px;
@@ -73,12 +73,28 @@ body {
     border: 2px solid white;
     padding: 10px;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 #party-equipment {
     color: white;
     font-size: 16px;
     line-height: 1.5;
+    flex: 1;
+}
+
+#tutorial-container {
+    color: white;
+    font-size: 14px;
+    line-height: 1.5;
+    border-top: 1px solid white;
+    padding-top: 10px;
+    flex: 1;
+}
+
+#tutorial-text {
+    margin: 0;
 }
 
 #victory-screen {

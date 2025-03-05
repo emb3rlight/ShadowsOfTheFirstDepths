@@ -1,25 +1,26 @@
 // Game State
 let party = {
-    fighter: { level: 1, hp: 50, str: 15, def: 10, mag: 5, spd: 10, weapon: null, armor: null },
-    cleric: { level: 1, hp: 35, str: 5, def: 8, mag: 15, spd: 8, weapon: null, armor: null },
-    mage: { level: 1, hp: 25, str: 5, def: 5, mag: 20, spd: 12, weapon: null, armor: null },
-    hunter: { level: 1, hp: 40, str: 10, def: 7, mag: 5, spd: 18, weapon: null, armor: null }
+    fighter: { level: 1, hp: 50, str: 15, def: 10, mag: 5, spd: 10, weapon: 'Wooden Sword', armor: 'Leather Armor' },
+    cleric: { level: 1, hp: 35, str: 5, def: 8, mag: 15, spd: 10, weapon: 'Simple Staff', armor: 'Cloth Robe' },
+    mage: { level: 1, hp: 25, str: 5, def: 5, mag: 20, spd: 10, weapon: 'Basic Wand', armor: 'Cloth Robe' },
+    hunter: { level: 1, hp: 40, str: 10, def: 7, mag: 5, spd: 10, weapon: 'Short Bow', armor: 'Leather Armor' }
 };
 let dungeon = [];
 let playerPos = { x: 5, y: 9 }; // Spawn at entrance (5, 9)
 let mapRevealed = Array(10).fill().map(() => Array(10).fill(false));
+let foughtMonsters = Array(10).fill().map(() => Array(10).fill(false)); // Track fought monsters
+let chestLocations = Array(10).fill().map(() => Array(10).fill(false)); // Track original chest positions
+let monsterLocations = Array(10).fill().map(() => Array(10).fill(false)); // Track original monster positions
 let currentFloor = 1;
 let totalFloors = 5;
 let startTime = Date.now();
 let combatLog = document.getElementById('combat-log');
 let victoryScreen = document.getElementById('victory-screen');
-let chestHighlight = { x: -1, y: -1, time: 0 }; // For flashing chest
 
-// Dungeon Generation with Pathfinding and Random Stairs
+// Dungeon Generation
 function generateDungeon(floor) {
     let grid = Array(10).fill().map(() => Array(10).fill('floor'));
     
-    // Initial random walls
     for (let y = 0; y < 10; y++) {
         for (let x = 0; x < 10; x++) {
             if (Math.random() < 0.3 && !(x === 5 && y === 9)) {
@@ -28,19 +29,13 @@ function generateDungeon(floor) {
         }
     }
     
-    // Set entrance
-    grid[9][5] = 'entrance'; // (5, 9)
-
-    // Place minimum 2 chests and 2 monsters
+    grid[9][5] = 'entrance';
     placeRandomTiles(grid, 'chest', 2);
     placeRandomTiles(grid, 'monster', 2);
+    placeRandomTiles(grid, 'chest', Math.floor(Math.random() * 2) + 1);
+    placeRandomTiles(grid, 'monster', Math.floor(Math.random() * 2) + 1);
 
-    // Place additional random chests/monsters (up to 3 total each)
-    placeRandomTiles(grid, 'chest', Math.floor(Math.random() * 2) + 1); // 2-3 chests
-    placeRandomTiles(grid, 'monster', Math.floor(Math.random() * 2) + 1); // 2-3 monsters
-
-    // Random stairs placement (Floors 1-4) or exit (Floor 5)
-    let stairsPos = { x: 5, y: 4 }; // Default for pathfinding
+    let stairsPos = { x: 5, y: 4 };
     if (floor < totalFloors) {
         do {
             stairsPos.x = Math.floor(Math.random() * 10);
@@ -48,29 +43,27 @@ function generateDungeon(floor) {
         } while (grid[stairsPos.y][stairsPos.x] !== 'floor' || (stairsPos.x === 5 && stairsPos.y === 9));
         grid[stairsPos.y][stairsPos.x] = 'stairs';
     } else {
-        grid[9][9] = 'exit'; // (9, 9)
-        stairsPos = { x: 9, y: 9 }; // For pathfinding on Floor 5
+        grid[9][9] = 'exit';
+        stairsPos = { x: 9, y: 9 };
     }
 
-    // Ensure path from entrance to stairs/exit
     let start = { x: 5, y: 9 };
     let current = { x: start.x, y: start.y };
     let visited = new Set();
     while (current.x !== stairsPos.x || current.y !== stairsPos.y) {
         visited.add(`${current.x},${current.y}`);
-        grid[current.y][current.x] = 'floor'; // Clear path
+        grid[current.y][current.x] = 'floor';
         if (current.x < stairsPos.x) current.x++;
         else if (current.x > stairsPos.x) current.x--;
         else if (current.y < stairsPos.y) current.y++;
         else if (current.y > stairsPos.y) current.y--;
-        // Avoid loops by breaking if stuck
         if (visited.has(`${current.x},${current.y}`)) break;
     }
-    grid[9][5] = 'entrance'; // Restore entrance
+    grid[9][5] = 'entrance';
     if (floor < totalFloors) {
-        grid[stairsPos.y][stairsPos.x] = 'stairs'; // Restore stairs
+        grid[stairsPos.y][stairsPos.x] = 'stairs';
     } else {
-        grid[9][9] = 'exit'; // Restore exit
+        grid[9][9] = 'exit';
     }
 
     return grid;
@@ -82,6 +75,8 @@ function placeRandomTiles(grid, type, count) {
         let y = Math.floor(Math.random() * 10);
         if (grid[y][x] === 'floor' && !(x === 5 && y === 9) && !(x === 9 && y === 9)) {
             grid[y][x] = type;
+            if (type === 'chest') chestLocations[y][x] = true;
+            if (type === 'monster') monsterLocations[y][x] = true; // Mark monster location
             count--;
         }
     }
@@ -128,9 +123,10 @@ function checkTile() {
     let tile = dungeon[playerPos.y][playerPos.x];
     if (tile === 'chest') {
         openChest();
-        chestHighlight = { x: playerPos.x, y: playerPos.y, time: Date.now() + 2000 }; // Highlight for 2 seconds
-    } else if (tile === 'monster') {
+    } else if (tile === 'monster' && !foughtMonsters[playerPos.y][playerPos.x]) {
         startCombat();
+        foughtMonsters[playerPos.y][playerPos.x] = true;
+        dungeon[playerPos.y][playerPos.x] = 'floor';
     } else if (tile === 'stairs') {
         nextFloor();
     } else if (tile === 'exit' && currentFloor === totalFloors) {
@@ -144,12 +140,13 @@ function openChest() {
         { name: 'Holy Staff', stat: 'mag', boost: Math.floor(Math.random() * 5) + 1, target: 'cleric' },
         { name: 'Magic Wand', stat: 'mag', boost: Math.floor(Math.random() * 5) + 1, target: 'mage' },
         { name: 'Swift Bow', stat: 'spd', boost: Math.floor(Math.random() * 5) + 1, target: 'hunter' },
+        { name: 'Wind Cloak', stat: 'spd', boost: Math.floor(Math.random() * 5) + 1, target: 'hunter' },
         { name: 'Iron Armor', stat: 'def', boost: Math.floor(Math.random() * 5) + 1, target: 'fighter' }
     ];
     let item = items[Math.floor(Math.random() * items.length)];
     combatLog.innerText += `Found ${item.name} (+${item.boost} ${item.stat.toUpperCase()})! Assigned to ${item.target}.\n`;
     party[item.target][item.stat] += item.boost;
-    if (item.name.includes('Armor')) {
+    if (item.name.includes('Armor') || item.name.includes('Cloak')) {
         party[item.target].armor = item.name;
     } else {
         party[item.target].weapon = item.name;
@@ -158,19 +155,41 @@ function openChest() {
 }
 
 function startCombat() {
-    let enemy = { hp: 20, str: 8, def: 5, spd: 10 };
+    let enemy = { hp: 20, str: 8, def: 5, spd: Math.floor(Math.random() * 5) + 8 };
+    let combatants = [
+        { name: 'Fighter', obj: party.fighter },
+        { name: 'Cleric', obj: party.cleric },
+        { name: 'Mage', obj: party.mage },
+        { name: 'Hunter', obj: party.hunter },
+        { name: 'Goblin', obj: enemy }
+    ];
+    
+    combatants.sort((a, b) => b.obj.spd - a.obj.spd);
+    
     combatLog.innerText += 'A Goblin appears!\n';
-    let damage = Math.max(0, party.fighter.str - enemy.def);
-    enemy.hp -= damage;
-    combatLog.innerText += `Fighter deals ${damage} damage to Goblin. Goblin HP: ${enemy.hp}\n`;
-    if (enemy.hp <= 0) {
-        combatLog.innerText += 'Goblin defeated! +10 EXP\n';
-        dungeon[playerPos.y][playerPos.x] = 'floor'; // Monster removed permanently
-        return;
+    for (let combatant of combatants) {
+        if (combatant.name === 'Goblin' && enemy.hp > 0) {
+            let targets = [party.fighter, party.cleric, party.mage, party.hunter];
+            let target = targets[Math.floor(Math.random() * targets.length)];
+            let damage = Math.floor(Math.random() * 3) + 1;
+            target.hp = Math.max(0, target.hp - damage);
+            combatLog.innerText += `Goblin deals ${damage} damage to ${combatant.name === 'Fighter' ? 'Fighter' : combatant.name === 'Cleric' ? 'Cleric' : combatant.name === 'Mage' ? 'Mage' : 'Hunter'}. ${combatant.name === 'Fighter' ? 'Fighter' : combatant.name === 'Cleric' ? 'Cleric' : combatant.name === 'Mage' ? 'Mage' : 'Hunter'} HP: ${target.hp}\n`;
+            if (target.hp <= 0) {
+                combatLog.innerText += `${combatant.name === 'Fighter' ? 'Fighter' : combatant.name === 'Cleric' ? 'Cleric' : combatant.name === 'Mage' ? 'Mage' : 'Hunter'} has fallen! Party defeated.\n`;
+                setTimeout(resetGame, 2000);
+                return;
+            }
+        } else if (enemy.hp > 0) {
+            let damage = Math.max(0, combatant.obj.str - enemy.def);
+            enemy.hp -= damage;
+            combatLog.innerText += `${combatant.name} deals ${damage} damage to Goblin. Goblin HP: ${enemy.hp}\n`;
+        }
+        if (enemy.hp <= 0) {
+            combatLog.innerText += 'Goblin defeated! +10 EXP\n';
+            break;
+        }
     }
-    let enemyDamage = Math.max(0, enemy.str - party.fighter.def);
-    party.fighter.hp -= enemyDamage;
-    combatLog.innerText += `Goblin deals ${enemyDamage} damage to Fighter. Fighter HP: ${party.fighter.hp}\n`;
+    render();
 }
 
 function nextFloor() {
@@ -179,7 +198,10 @@ function nextFloor() {
     dungeon = generateDungeon(currentFloor);
     playerPos = { x: 5, y: 9 };
     mapRevealed = Array(10).fill().map(() => Array(10).fill(false));
-    mapRevealed[9][5] = true; // Entrance
+    foughtMonsters = Array(10).fill().map(() => Array(10).fill(false));
+    chestLocations = Array(10).fill().map(() => Array(10).fill(false));
+    monsterLocations = Array(10).fill().map(() => Array(10).fill(false));
+    mapRevealed[9][5] = true;
     render();
 }
 
@@ -194,9 +216,9 @@ function endGame() {
         <p>Floors Conquered: ${currentFloor}</p>
         <p>Time Taken: ${minutes}m ${seconds}s</p>
         <p>Final Party Stats:</p>
-        Fighter (Lv ${party.fighter.level}): HP ${party.fighter.hp}, STR ${party.fighter.str}, DEF ${party.fighter.def}<br>
-        Cleric (Lv ${party.cleric.level}): HP ${party.cleric.hp}, MAG ${party.cleric.mag}<br>
-        Mage (Lv ${party.mage.level}): HP ${party.mage.hp}, MAG ${party.mage.mag}<br>
+        Fighter (Lv ${party.fighter.level}): HP ${party.fighter.hp}, STR ${party.fighter.str}, DEF ${party.fighter.def}, SPD ${party.fighter.spd}<br>
+        Cleric (Lv ${party.cleric.level}): HP ${party.cleric.hp}, MAG ${party.cleric.mag}, SPD ${party.cleric.spd}<br>
+        Mage (Lv ${party.mage.level}): HP ${party.mage.hp}, MAG ${party.mage.mag}, SPD ${party.mage.spd}<br>
         Hunter (Lv ${party.hunter.level}): HP ${party.hunter.hp}, STR ${party.hunter.str}, SPD ${party.hunter.spd}
     `;
     document.getElementById('reset-button').addEventListener('click', resetGame);
@@ -204,20 +226,22 @@ function endGame() {
 
 function resetGame() {
     party = {
-        fighter: { level: 1, hp: 50, str: 15, def: 10, mag: 5, spd: 10, weapon: null, armor: null },
-        cleric: { level: 1, hp: 35, str: 5, def: 8, mag: 15, spd: 8, weapon: null, armor: null },
-        mage: { level: 1, hp: 25, str: 5, def: 5, mag: 20, spd: 12, weapon: null, armor: null },
-        hunter: { level: 1, hp: 40, str: 10, def: 7, mag: 5, spd: 18, weapon: null, armor: null }
+        fighter: { level: 1, hp: 50, str: 15, def: 10, mag: 5, spd: 10, weapon: 'Wooden Sword', armor: 'Leather Armor' },
+        cleric: { level: 1, hp: 35, str: 5, def: 8, mag: 15, spd: 10, weapon: 'Simple Staff', armor: 'Cloth Robe' },
+        mage: { level: 1, hp: 25, str: 5, def: 5, mag: 20, spd: 10, weapon: 'Basic Wand', armor: 'Cloth Robe' },
+        hunter: { level: 1, hp: 40, str: 10, def: 7, mag: 5, spd: 10, weapon: 'Short Bow', armor: 'Leather Armor' }
     };
     currentFloor = 1;
     startTime = Date.now();
     dungeon = generateDungeon(currentFloor);
     playerPos = { x: 5, y: 9 };
     mapRevealed = Array(10).fill().map(() => Array(10).fill(false));
+    foughtMonsters = Array(10).fill().map(() => Array(10).fill(false));
+    chestLocations = Array(10).fill().map(() => Array(10).fill(false));
+    monsterLocations = Array(10).fill().map(() => Array(10).fill(false));
     mapRevealed[9][5] = true;
     combatLog.innerText = '';
     victoryScreen.style.display = 'none';
-    chestHighlight = { x: -1, y: -1, time: 0 };
     render();
 }
 
@@ -227,6 +251,7 @@ function render() {
     const mapCanvas = document.getElementById('map-canvas').getContext('2d');
     const statsDiv = document.getElementById('party-stats');
     const equipmentDiv = document.getElementById('party-equipment');
+    const tutorialDiv = document.getElementById('tutorial-text');
 
     // Clear canvases
     dungeonCanvas.clearRect(0, 0, 900, 700);
@@ -251,10 +276,10 @@ function render() {
                 if (x === 5 && y === 9) {
                     mapCanvas.fillStyle = 'orange';
                     mapCanvas.fillRect(x * 30 + 8, y * 30 + 8, 12, 12);
-                } else if (dungeon[y][x] === 'chest') {
-                    mapCanvas.fillStyle = 'yellow';
+                } else if (chestLocations[y][x]) {
+                    mapCanvas.fillStyle = 'green';
                     mapCanvas.fillRect(x * 30 + 8, y * 30 + 8, 12, 12);
-                } else if (dungeon[y][x] === 'monster') {
+                } else if (monsterLocations[y][x]) { // Show red dot regardless of fought status
                     mapCanvas.fillStyle = 'red';
                     mapCanvas.fillRect(x * 30 + 8, y * 30 + 8, 12, 12);
                 } else if (dungeon[y][x] === 'stairs') {
@@ -267,38 +292,39 @@ function render() {
             }
         }
     }
-    // Chest highlight (green border)
-    if (chestHighlight.time > Date.now()) {
-        mapCanvas.strokeStyle = 'green';
-        mapCanvas.lineWidth = 3;
-        mapCanvas.strokeRect(chestHighlight.x * 30, chestHighlight.y * 30, 28, 28);
-    }
     mapCanvas.fillStyle = 'blue';
     mapCanvas.fillRect(playerPos.x * 30, playerPos.y * 30, 28, 28);
 
     // Party stats
     statsDiv.innerHTML = `
-        Fighter (Lv ${party.fighter.level}): HP ${party.fighter.hp}, STR ${party.fighter.str}, DEF ${party.fighter.def}<br>
-        Cleric (Lv ${party.cleric.level}): HP ${party.cleric.hp}, MAG ${party.cleric.mag}<br>
-        Mage (Lv ${party.mage.level}): HP ${party.mage.hp}, MAG ${party.mage.mag}<br>
+        Fighter (Lv ${party.fighter.level}): HP ${party.fighter.hp}, STR ${party.fighter.str}, DEF ${party.fighter.def}, SPD ${party.fighter.spd}<br>
+        Cleric (Lv ${party.cleric.level}): HP ${party.cleric.hp}, MAG ${party.cleric.mag}, SPD ${party.cleric.spd}<br>
+        Mage (Lv ${party.mage.level}): HP ${party.mage.hp}, MAG ${party.mage.mag}, SPD ${party.mage.spd}<br>
         Hunter (Lv ${party.hunter.level}): HP ${party.hunter.hp}, STR ${party.hunter.str}, SPD ${party.hunter.spd}
     `;
 
     // Party equipment
     equipmentDiv.innerHTML = `
         <h3>Party Equipment</h3>
-        Fighter:<br>
-        - Weapon: ${party.fighter.weapon || 'None'}<br>
-        - Armor: ${party.fighter.armor || 'None'}<br>
-        Cleric:<br>
-        - Weapon: ${party.cleric.weapon || 'None'}<br>
-        - Armor: ${party.cleric.armor || 'None'}<br>
-        Mage:<br>
-        - Weapon: ${party.mage.weapon || 'None'}<br>
-        - Armor: ${party.mage.armor || 'None'}<br>
-        Hunter:<br>
-        - Weapon: ${party.hunter.weapon || 'None'}<br>
-        - Armor: ${party.hunter.armor || 'None'}
+        Fighter:<br>- Weapon: ${party.fighter.weapon || 'None'}<br>- Armor: ${party.fighter.armor || 'None'}<br>
+        Cleric:<br>- Weapon: ${party.cleric.weapon || 'None'}<br>- Armor: ${party.cleric.armor || 'None'}<br>
+        Mage:<br>- Weapon: ${party.mage.weapon || 'None'}<br>- Armor: ${party.mage.armor || 'None'}<br>
+        Hunter:<br>- Weapon: ${party.hunter.weapon || 'None'}<br>- Armor: ${party.hunter.armor || 'None'}
+    `;
+
+    // Tutorial text
+    tutorialDiv.innerHTML = `
+        <h3>Tutorial</h3>
+        <p><b>Controls:</b> Use WASD to move - W (up), A (left), S (down), D (right).</p>
+        <p><b>Objective:</b> Navigate 5 floors to reach the exit. Find stairs (purple) on each floor to ascend.</p>
+        <p><b>Game Over:</b> If any party member’s HP reaches 0, the game restarts.</p>
+        <p><b>Elements:</b></p>
+        <ul>
+            <li><b>Monsters (red):</b> Fight them once; defeated tiles become normal floors.</li>
+            <li><b>Chests (green):</b> Open for equipment to boost stats.</li>
+            <li><b>Entrance (orange):</b> Your starting point each floor.</li>
+            <li><b>Exit (green):</b> Reach it on Floor 5 to win!</li>
+        </ul>
     `;
 }
 
