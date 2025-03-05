@@ -8,9 +8,9 @@ let party = {
 let dungeon = [];
 let playerPos = { x: 5, y: 9 }; // Spawn at entrance (5, 9)
 let mapRevealed = Array(10).fill().map(() => Array(10).fill(false));
-let foughtMonsters = Array(10).fill().map(() => Array(10).fill(false)); // Track fought monsters
-let chestLocations = Array(10).fill().map(() => Array(10).fill(false)); // Track original chest positions
-let monsterLocations = Array(10).fill().map(() => Array(10).fill(false)); // Track original monster positions
+let foughtMonsters = Array(10).fill().map(() => Array(10).fill(false));
+let chestLocations = Array(10).fill().map(() => Array(10).fill(false));
+let monsterLocations = Array(10).fill().map(() => Array(10).fill(false));
 let currentFloor = 1;
 let totalFloors = 5;
 let startTime = Date.now();
@@ -76,7 +76,7 @@ function placeRandomTiles(grid, type, count) {
         if (grid[y][x] === 'floor' && !(x === 5 && y === 9) && !(x === 9 && y === 9)) {
             grid[y][x] = type;
             if (type === 'chest') chestLocations[y][x] = true;
-            if (type === 'monster') monsterLocations[y][x] = true; // Mark monster location
+            if (type === 'monster') monsterLocations[y][x] = true;
             count--;
         }
     }
@@ -85,27 +85,24 @@ function placeRandomTiles(grid, type, count) {
 // Movement with WASD
 function move(key) {
     let newPos = { x: playerPos.x, y: playerPos.y };
+    let direction = '';
 
     if (key === 'w') {
-        if (playerPos.y > 0) newPos.y--;
+        if (playerPos.y > 0) { newPos.y--; direction = 'up'; }
     } else if (key === 's') {
-        if (playerPos.y < 9) newPos.y++;
+        if (playerPos.y < 9) { newPos.y++; direction = 'down'; }
     } else if (key === 'a') {
-        if (playerPos.x > 0) newPos.x--;
-        else if (playerPos.y > 0) newPos.y--;
-        else if (playerPos.y < 9) newPos.y++;
+        if (playerPos.x > 0) { newPos.x--; direction = 'left'; }
     } else if (key === 'd') {
-        if (playerPos.x < 9) newPos.x++;
-        else if (playerPos.y > 0) newPos.y--;
-        else if (playerPos.y < 9) newPos.y++;
+        if (playerPos.x < 9) { newPos.x++; direction = 'right'; }
     }
 
     if (dungeon[newPos.y][newPos.x] !== 'wall') {
         playerPos = newPos;
         mapRevealed[newPos.y][newPos.x] = true;
-        checkTile();
+        checkTile(direction);
     }
-    render();
+    render(direction);
 }
 
 // Keyboard Input
@@ -119,7 +116,7 @@ document.addEventListener('keydown', (event) => {
 });
 
 // Tile Interactions
-function checkTile() {
+function checkTile(direction) {
     let tile = dungeon[playerPos.y][playerPos.x];
     if (tile === 'chest') {
         openChest();
@@ -245,8 +242,8 @@ function resetGame() {
     render();
 }
 
-// Rendering
-function render() {
+// Rendering with 3D visuals
+function render(direction = 'up') {
     const dungeonCanvas = document.getElementById('dungeon-view').getContext('2d');
     const mapCanvas = document.getElementById('map-canvas').getContext('2d');
     const statsDiv = document.getElementById('party-stats');
@@ -257,11 +254,117 @@ function render() {
     dungeonCanvas.clearRect(0, 0, 900, 700);
     mapCanvas.clearRect(0, 0, 300, 300);
 
-    // Dungeon view
+    // Dungeon view - 3D rendering
+    dungeonCanvas.fillStyle = '#333'; // Dark background
+    dungeonCanvas.fillRect(0, 0, 900, 700);
+
+    // Determine tiles ahead based on direction
+    let aheadX = playerPos.x;
+    let aheadY = playerPos.y;
+    if (direction === 'up') aheadY--;
+    else if (direction === 'down') aheadY++;
+    else if (direction === 'left') aheadX--;
+    else if (direction === 'right') aheadX++;
+
+    // Check bounds and get tile ahead
+    let tileAhead = 'wall';
+    if (aheadX >= 0 && aheadX < 10 && aheadY >= 0 && aheadY < 10) {
+        tileAhead = dungeon[aheadY][aheadX];
+    }
+
+    // Draw based on tile ahead
+    if (tileAhead === 'floor' || tileAhead === 'entrance') {
+        // Corridor (trapezoid for 3D effect)
+        dungeonCanvas.fillStyle = '#555'; // Floor
+        dungeonCanvas.beginPath();
+        dungeonCanvas.moveTo(200, 700); // Bottom left
+        dungeonCanvas.lineTo(700, 700); // Bottom right
+        dungeonCanvas.lineTo(600, 100); // Top right
+        dungeonCanvas.lineTo(300, 100); // Top left
+        dungeonCanvas.closePath();
+        dungeonCanvas.fill();
+
+        // Walls
+        dungeonCanvas.fillStyle = '#777'; // Left wall
+        dungeonCanvas.beginPath();
+        dungeonCanvas.moveTo(0, 700);
+        dungeonCanvas.lineTo(200, 700);
+        dungeonCanvas.lineTo(300, 100);
+        dungeonCanvas.lineTo(0, 100);
+        dungeonCanvas.closePath();
+        dungeonCanvas.fill();
+
+        dungeonCanvas.fillStyle = '#777'; // Right wall
+        dungeonCanvas.beginPath();
+        dungeonCanvas.moveTo(700, 700);
+        dungeonCanvas.lineTo(900, 700);
+        dungeonCanvas.lineTo(900, 100);
+        dungeonCanvas.lineTo(600, 100);
+        dungeonCanvas.closePath();
+        dungeonCanvas.fill();
+    } else if (tileAhead === 'wall') {
+        // Wall (full rectangle with shading)
+        dungeonCanvas.fillStyle = '#666';
+        dungeonCanvas.fillRect(0, 100, 900, 600);
+        dungeonCanvas.fillStyle = 'rgba(0, 0, 0, 0.3)'; // Shadow
+        dungeonCanvas.fillRect(0, 100, 900, 300);
+    } else if (tileAhead === 'stairs') {
+        // Stairs (stepped blocks)
+        for (let i = 0; i < 5; i++) {
+            dungeonCanvas.fillStyle = '#888';
+            dungeonCanvas.fillRect(200 + i * 50, 700 - i * 120, 500 - i * 100, 120);
+            dungeonCanvas.fillStyle = '#666'; // Top face shading
+            dungeonCanvas.fillRect(200 + i * 50, 700 - i * 120 - 20, 500 - i * 100, 20);
+        }
+    } else if (tileAhead === 'chest') {
+        // Chest (3D box)
+        dungeonCanvas.fillStyle = '#8B4513'; // Brown body
+        dungeonCanvas.fillRect(350, 400, 200, 200);
+        dungeonCanvas.fillStyle = '#A0522D'; // Lid
+        dungeonCanvas.beginPath();
+        dungeonCanvas.moveTo(350, 400);
+        dungeonCanvas.lineTo(550, 400);
+        dungeonCanvas.lineTo(600, 350);
+        dungeonCanvas.lineTo(300, 350);
+        dungeonCanvas.closePath();
+        dungeonCanvas.fill();
+        dungeonCanvas.fillStyle = '#FFD700'; // Gold latch
+        dungeonCanvas.fillRect(440, 480, 20, 40);
+    } else if (tileAhead === 'monster' && !foughtMonsters[aheadY][aheadX]) {
+        // Monster (stick figure)
+        dungeonCanvas.fillStyle = '#FF0000';
+        dungeonCanvas.beginPath();
+        dungeonCanvas.arc(450, 350, 30, 0, Math.PI * 2); // Head
+        dungeonCanvas.fill();
+        dungeonCanvas.strokeStyle = '#FF0000';
+        dungeonCanvas.lineWidth = 5;
+        dungeonCanvas.beginPath();
+        dungeonCanvas.moveTo(450, 380); // Body
+        dungeonCanvas.lineTo(450, 500);
+        dungeonCanvas.moveTo(450, 400); // Arms
+        dungeonCanvas.lineTo(400, 450);
+        dungeonCanvas.moveTo(450, 400);
+        dungeonCanvas.lineTo(500, 450);
+        dungeonCanvas.moveTo(450, 500); // Legs
+        dungeonCanvas.lineTo(400, 600);
+        dungeonCanvas.moveTo(450, 500);
+        dungeonCanvas.lineTo(500, 600);
+        dungeonCanvas.stroke();
+    } else if (tileAhead === 'exit') {
+        // Exit (glowing portal)
+        let gradient = dungeonCanvas.createRadialGradient(450, 350, 50, 450, 350, 200);
+        gradient.addColorStop(0, '#00FF00');
+        gradient.addColorStop(1, '#006600');
+        dungeonCanvas.fillStyle = gradient;
+        dungeonCanvas.beginPath();
+        dungeonCanvas.arc(450, 350, 150, 0, Math.PI * 2);
+        dungeonCanvas.fill();
+    }
+
+    // Overlay floor and position text
     dungeonCanvas.fillStyle = 'white';
-    dungeonCanvas.font = '30px Arial';
-    dungeonCanvas.fillText(`Floor ${currentFloor} - Position: (${playerPos.x}, ${playerPos.y})`, 20, 50);
-    dungeonCanvas.fillText(`Tile: ${dungeon[playerPos.y][playerPos.x]}`, 20, 100);
+    dungeonCanvas.font = '20px Arial';
+    dungeonCanvas.fillText(`Floor ${currentFloor} - Position: (${playerPos.x}, ${playerPos.y})`, 10, 30);
 
     // Mini-map
     for (let y = 0; y < 10; y++) {
@@ -279,7 +382,7 @@ function render() {
                 } else if (chestLocations[y][x]) {
                     mapCanvas.fillStyle = 'green';
                     mapCanvas.fillRect(x * 30 + 8, y * 30 + 8, 12, 12);
-                } else if (monsterLocations[y][x]) { // Show red dot regardless of fought status
+                } else if (monsterLocations[y][x]) {
                     mapCanvas.fillStyle = 'red';
                     mapCanvas.fillRect(x * 30 + 8, y * 30 + 8, 12, 12);
                 } else if (dungeon[y][x] === 'stairs') {
