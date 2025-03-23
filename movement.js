@@ -3,6 +3,7 @@ import { dungeon, playerPos, mapRevealed, foughtMonsters, currentFloor, totalFlo
 import { openChest, startCombat } from './combat.js';
 import { generateDungeon } from './dungeon.js';
 import { render } from './render.js';
+import { resetGame } from './game.js'; // Added explicitly
 
 export function move(key) {
     let newPos = { x: playerPos.x, y: playerPos.y };

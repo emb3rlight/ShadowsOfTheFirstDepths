@@ -1,6 +1,7 @@
 // combat.js
 import { party, combatLog, dungeon, playerPos } from './game.js';
-import { resetGame, render } from './game.js';
+import { resetGame } from './game.js';
+import { render } from './render.js'; // Fixed import
 
 export function openChest() {
     const items = [
@@ -23,7 +24,7 @@ export function openChest() {
 }
 
 export function startCombat() {
-    let enemy = { hp: 20, str: 8, def: 5, spd: Math.floor(Math.random() * 5) + 8 };
+    let enemy = { hp: 20, str: 8, def: 5, spd: Math.floor(Math.random() * 5) + 1 };
     let combatants = [
         { name: 'Fighter', obj: party.fighter },
         { name: 'Cleric', obj: party.cleric },
