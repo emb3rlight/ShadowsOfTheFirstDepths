@@ -21,6 +21,7 @@ export function openChest() {
         party[item.target].weapon = item.name;
     }
     dungeon[playerPos.y][playerPos.x] = 'floor';
+    console.log(`Chest opened, tile now: ${dungeon[playerPos.y][playerPos.x]}`);
 }
 
 export function startCombat() {

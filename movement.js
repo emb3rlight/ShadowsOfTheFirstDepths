@@ -3,7 +3,7 @@ import { dungeon, playerPos, mapRevealed, foughtMonsters, currentFloor, totalFlo
 import { openChest, startCombat } from './combat.js';
 import { generateDungeon } from './dungeon.js';
 import { render } from './render.js';
-import { resetGame } from './game.js'; // Added explicitly
+import { resetGame } from './game.js';
 
 export function move(key) {
     let newPos = { x: playerPos.x, y: playerPos.y };
@@ -19,6 +19,7 @@ export function move(key) {
         if (playerPos.x < 9) { newPos.x++; direction = 'right'; }
     }
 
+    // Allow movement to any non-wall tile
     if (dungeon[newPos.y][newPos.x] !== 'wall') {
         playerPos.x = newPos.x;
         playerPos.y = newPos.y;
@@ -30,13 +31,16 @@ export function move(key) {
 
 export function checkTile(direction) {
     let tile = dungeon[playerPos.y][playerPos.x];
+    console.log(`Tile at (${playerPos.x}, ${playerPos.y}): ${tile}`);
     if (tile === 'chest') {
         openChest();
     } else if (tile === 'monster' && !foughtMonsters[playerPos.y][playerPos.x]) {
         startCombat();
         foughtMonsters[playerPos.y][playerPos.x] = true;
         dungeon[playerPos.y][playerPos.x] = 'floor';
+        console.log(`Monster defeated, tile now: ${dungeon[playerPos.y][playerPos.x]}`);
     } else if (tile === 'stairs') {
+        console.log('Stepping on stairs!');
         nextFloor();
     } else if (tile === 'exit' && currentFloor === totalFloors) {
         endGame();

@@ -16,7 +16,7 @@ export function generateDungeon(floor, chestLocations, monsterLocations) {
     placeRandomTiles(grid, 'chest', Math.floor(Math.random() * 2) + 1, chestLocations, monsterLocations);
     placeRandomTiles(grid, 'monster', Math.floor(Math.random() * 2) + 1, chestLocations, monsterLocations);
 
-    let stairsPos = { x: 5, y: 4 };
+    let stairsPos = { x: 0, y: 0 }; // Default to (0,0) for visibility
     if (floor < 5) {
         do {
             stairsPos.x = Math.floor(Math.random() * 10);
@@ -42,7 +42,7 @@ export function generateDungeon(floor, chestLocations, monsterLocations) {
     }
     grid[9][5] = 'entrance';
     if (floor < 5) {
-        grid[stairsPos.y][stairsPos.x] = 'stairs';
+        grid[stairsPos.y][stairsPos.x] = 'stairs'; // Ensure stairs persist
     } else {
         grid[9][9] = 'exit';
     }
